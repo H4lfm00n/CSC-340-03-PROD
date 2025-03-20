@@ -8,8 +8,11 @@
 * 01/16/2025 - Modified by hhui; created separate node structure file
 */
 
+
+
 #ifndef _HASH_TABLE
 #define _HASH_TABLE
+#include <iostream>
 
 #include "hash_node.h"
 
