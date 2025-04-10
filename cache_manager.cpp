@@ -3,174 +3,169 @@
  * @brief Cache manager implementation.
  * @author Atharva Shrivastava
  * @date 2025-03-18
+ * updated 2025-04-10
+ * Note: Corrected cache manager implementation in the cache_manager.cpp file.
  * 
  */
-
-#include "hash_table.h"
+#include "cache_manager.h"
 #include <iostream>
 
-
 /**
- * getSize
- * @brief Method to return the size of the hash table
- * 
+ * getTable
+ *
+ * Method to return the hash table
+ *
  * @param none
- * @return Size of the hash table
+ * @return pointer to the hash table
  */
-int HashTable::getSize() {
-    return numberOfBuckets;
+HashTable* CacheManager::getTable() {
+    return hashTable;
 }
 
 /**
- * calculateHashCode
- * @brief Method to calculate the hash code
- * 
- * @param currentKey Key to calculate hash code
- * @return Hash code
+ * getList
+ *
+ * Method to return the FIFO list
+ *
+ * @param none
+ * @return pointer to the FIFO list
  */
-int HashTable::calculateHashCode(int currentKey) {
-    return currentKey % numberOfBuckets;
+DoublyLinkedList* CacheManager::getList() {
+    return doublyLinkedList;
 }
 
 /**
  * isEmpty
- * @brief Method to check if the hash table is empty
- * 
+ *
+ * Method to check if CacheManager is empty
+ *
  * @param none
- * @return true if the table has zero entries, false otherwise
+ * @return true if the CacheManager has zero entries, false otherwise
  */
-bool HashTable::isEmpty() {
-    return numberOfItems == 0;
+bool CacheManager::isEmpty() {
+    return hashTable->isEmpty();
 }
 
 /**
- * getNumberOfItems
- * @brief Method to return number of items in the hash table
- * 
+ * getSize
+ *
+ * Method to return the number of items in the CacheManager
+ *
  * @param none
- * @return Number of items in the table
+ * @return number of items in the CacheManager
  */
-int HashTable::getNumberOfItems() {
-    return numberOfItems;
+int CacheManager::getSize() {
+    return hashTable->getNumberOfItems();
 }
 
 /**
  * add
- * @brief Method to add a node to the hash table
- * 
- * @param curKey Key for this node
- * @param myNode New node to add to the table
+ *
+ * Method to add a node to the CacheManager
+ *
+ * @param curKey key for this node
+ * @param myNode new node to add to the table
  * @return true if success, false otherwise
  */
-bool HashTable::add(int curKey, HashNode* myNode) {
-    int hashIndex = calculateHashCode(curKey);
-    myNode->next = table[hashIndex];
-    table[hashIndex] = myNode;
-    numberOfItems++;
-    return true;
+bool CacheManager::add(int curKey, DllNode* myNode) {
+    if (doublyLinkedList->getSize() >= maxCacheSize) {
+        DllNode* tailNode = doublyLinkedList->tail;
+        if (tailNode) {
+            hashTable->remove(tailNode->key);
+            doublyLinkedList->removeTailNode();
+        }
+    }
+    doublyLinkedList->insertAtHead(curKey, myNode);
+    HashNode* hashNode = new HashNode(curKey, myNode);
+    return hashTable->add(curKey, hashNode);
 }
 
 /**
  * remove
- * @brief Method to remove node with key value
- * 
- * @param curKey Key of node to remove
+ *
+ * Method to remove node with curKey
+ *
+ * @param curKey key of node to remove
  * @return true if success, false otherwise
  */
-bool HashTable::remove(int curKey) {
-    int hashIndex = calculateHashCode(curKey);
-    HashNode* temp = table[hashIndex];
-    HashNode* prev = nullptr;
-    
-    while (temp && temp->key != curKey) {
-        prev = temp;
-        temp = temp->next;
-    }
-    
-    if (!temp) return false;
-    
-    if (prev) prev->next = temp->next;
-    else table[hashIndex] = temp->next;
-    
-    delete temp;
-    numberOfItems--;
-    return true;
+bool CacheManager::remove(int curKey) {
+    doublyLinkedList->remove(curKey);
+    return hashTable->remove(curKey);
 }
 
 /**
  * clear
- * @brief Method to remove all entries from the table
- * 
+ *
+ * Method to remove all entries from the CacheManager
+ *
  * @param none
- * @return nothing, but will delete all entries from the table
+ * @return nothing
  */
-void HashTable::clear() {
-    for (int i = 0; i < numberOfBuckets; i++) {
-        HashNode* temp = table[i];
-        while (temp) {
-            HashNode* next = temp->next;
-            delete temp;
-            temp = next;
-        }
-        table[i] = nullptr;
-    }
-    numberOfItems = 0;
+void CacheManager::clear() {
+    doublyLinkedList->clear();
+    hashTable->clear();
 }
 
 /**
  * getItem
- * @brief Method to retrieve item from the table
- * 
- * @param curKey Retrieve node from table with curKey value
- * @return HashNode* Node with the key value
+ *
+ * Method to retrieve item from the CacheManager
+ *
+ * @param curKey key of the item to retrieve
+ * @return pointer to the DllNode
  */
-HashNode* HashTable::getItem(int curKey) {
-    int hashIndex = calculateHashCode(curKey);
-    HashNode* temp = table[hashIndex];
-    while (temp) {
-        if (temp->key == curKey) return temp;
-        temp = temp->next;
+DllNode* CacheManager::getItem(int curKey) {
+    if (contains(curKey)) {
+        doublyLinkedList->moveNodeToHead(curKey);
+        return hashTable->getItem(curKey)->getFifoNode();
     }
     return nullptr;
 }
 
 /**
  * getMaxCacheSize
- * @brief Method to retrieve max size of cache from the CacheManager
- * 
+ *
+ * Method to retrieve max size of cache from the CacheManager
+ *
  * @param none
- * @return Max size of cache
+ * @return max size of cache manager
  */
-bool HashTable::contains(int curKey) {
-    return getItem(curKey) != nullptr;
+int CacheManager::getMaxCacheSize() {
+    return maxCacheSize;
 }
 
 /**
- * printTable
- * @brief Method to print the hash table
- * 
- * @param none
- * @return nothing, but will print the table
+ * contains
+ *
+ * Method to determine if a key value is in the cache
+ *
+ * @param curKey key to check for existence
+ * @return true if exists, false otherwise
  */
-void HashTable::printTable() {
-    for (int i = 0; i < numberOfBuckets; i++) {
-        std::cout << "Bucket " << i << ": ";
-        HashNode* temp = table[i];
-        while (temp) {
-            std::cout << temp->key << " -> ";
-            temp = temp->next;
-        }
-        std::cout << "Empty\n";
+bool CacheManager::contains(int curKey) {
+    if (hashTable->contains(curKey)) {
+        doublyLinkedList->moveNodeToHead(curKey);
+        return true;
     }
+    return false;
 }
 
 /**
- * getTable
- * @brief Method to return the hash table
- * 
+ * printCache
+ *
+ * Method to print out the cache information
+ *
  * @param none
- * @return Pointer to the hash table array
+ * @return nothing
  */
-HashNode** HashTable::getTable() {
-    return table;
+void CacheManager::printCache() {
+    std::cout << "\n\nPrinting out the cache contents\n" << std::endl;
+    std::cout << "Here are the FIFO List contents: " << std::endl;
+    doublyLinkedList->printList();
+
+    std::cout << "\nHere are the Hash Table contents (" << getSize() << " entries):" << std::endl;
+    hashTable->printTable();
+
+    std::cout << "End of cache contents\n\n" << std::endl;
 }
+
